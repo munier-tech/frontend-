@@ -78,6 +78,8 @@ function QuranSection() {
   const [saving, setSaving] = useState(false)
 
   const [students, setStudents] = useState([])
+  const getStudentId = (student) => student?._id || student?.id
+  const getRecordId = (record) => record?._id || record?.id
   const [studentRows, setStudentRows] = useState([])
 
   const [editingRecordId, setEditingRecordId] = useState(null)
@@ -124,9 +126,13 @@ function QuranSection() {
     try {
       const res = await axios.get(`/classes/getStudents/${classId}`)
       const data = res.data
-      setStudents(data.students || [])
-      setStudentRows((data.students||[]).map(s => ({ 
-        student: s._id, 
+      const normalizedStudents = (data.students || []).map(student => ({
+        ...student,
+        _id: getStudentId(student)
+      }))
+      setStudents(normalizedStudents)
+      setStudentRows(normalizedStudents.map(s => ({ 
+        student: getStudentId(s), 
         dailyLessonHint: '', 
         currentSurah: '', 
         taxdiid: '', 
@@ -159,7 +165,7 @@ function QuranSection() {
       const res = await LessonRecordsAPI.createQuran(payload)
       setRecords(prev => [res.data, ...prev])
       setStudentRows(students.map(s => ({ 
-        student: s._id, 
+        student: getStudentId(s), 
         dailyLessonHint: '', 
         currentSurah: '', 
         taxdiid: '', 
@@ -176,9 +182,9 @@ function QuranSection() {
   }
 
   const startEdit = (record) => {
-    setEditingRecordId(record._id)
+    setEditingRecordId(getRecordId(record))
     setEditingRows((record.studentPerformances||[]).map(sp => ({
-      student: sp.student?._id || sp.student,
+      student: sp.student?._id || sp.student?.id || sp.student,
       dailyLessonHint: sp.dailyLessonHint || '',
       currentSurah: sp.currentSurah || '',
       taxdiid: sp.taxdiid || '',
@@ -199,7 +205,7 @@ function QuranSection() {
   const saveEdit = async (id) => {
     try {
       const res = await LessonRecordsAPI.update(id, { studentPerformances: editingRows })
-      setRecords(prev => prev.map(r => r._id === id ? res.data : r))
+      setRecords(prev => prev.map(r => getRecordId(r) === id ? res.data : r))
       setEditingRecordId(null)
       setEditingRows([])
       toast.success('Diiwaan waa la cusbooneysiiyay')
@@ -213,7 +219,7 @@ function QuranSection() {
     
     try {
       await LessonRecordsAPI.remove(id)
-      setRecords(prev => prev.filter(r => r._id !== id))
+      setRecords(prev => prev.filter(r => getRecordId(r) !== id))
       toast.success('Diiwaan waa la tirtiray')
     } catch (e) { 
       toast.error('Tirtiristu waa fashilantay') 
@@ -372,8 +378,9 @@ function QuranSection() {
   )
 
   const RecordCard = ({ record, index }) => {
-    const isExpanded = expandedRecords[record._id]
-    const isEditing = editingRecordId === record._id
+    const recordId = getRecordId(record)
+    const isExpanded = expandedRecords[recordId]
+    const isEditing = editingRecordId === recordId
     
     return (
       <motion.div
@@ -452,7 +459,7 @@ function QuranSection() {
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button 
-                    onClick={() => removeRecord(record._id)} 
+                    onClick={() => removeRecord(getRecordId(record))} 
                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     title="Tirtir"
                   >
@@ -463,7 +470,7 @@ function QuranSection() {
               
               {!isMobileView && !isEditing && (
                 <button
-                  onClick={() => toggleRecordExpansion(record._id)}
+                  onClick={() => toggleRecordExpansion(getRecordId(record))}
                   className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -477,9 +484,10 @@ function QuranSection() {
           <div className="p-4">
             <div className="space-y-3 max-h-96 overflow-auto">
               {(record.studentPerformances || []).map((sp, idx) => {
-                const student = students.find(s => s._id === (sp.student?._id || sp.student))
+                const student = students.find(s => getStudentId(s) === (sp.student?._id || sp.student?.id || sp.student))
+                const rowKey = `${recordId}-${getStudentId(sp.student) || idx}`
                 return (
-                  <div key={idx} className="border border-gray-200 rounded-lg p-3">
+                  <div key={rowKey} className="border border-gray-200 rounded-lg p-3">
                     <div className="font-medium mb-2">{student?.fullname || 'Arday'}</div>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                       <input 
@@ -525,7 +533,7 @@ function QuranSection() {
                 <XCircle className="w-4 h-4 inline mr-1" />
                 Jooji
               </button>
-              <button onClick={() => saveEdit(record._id)} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+              <button onClick={() => saveEdit(getRecordId(record))} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
                 <Save className="w-4 h-4 inline mr-1" />
                 Kaydi
               </button>
@@ -544,9 +552,10 @@ function QuranSection() {
                 <div className="p-4 bg-gray-50">
                   <div className="space-y-2">
                     {(record.studentPerformances || []).map((sp, idx) => {
-                      const student = students.find(s => s._id === (sp.student?._id || sp.student))
+                      const student = students.find(s => getStudentId(s) === (sp.student?._id || sp.student?.id || sp.student))
+                      const rowKey = `${recordId}-${getStudentId(sp.student) || idx}`
                       return (
-                        <div key={idx} className="bg-white rounded-lg p-3 border">
+                        <div key={rowKey} className="bg-white rounded-lg p-3 border">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
@@ -758,7 +767,7 @@ function QuranSection() {
                       <div className="max-h-96 overflow-auto space-y-3">
                         {students.map((student, idx) => (
                           <StudentPerformanceRow
-                            key={student._id}
+                            key={getStudentId(student) || `student-${idx}`}
                             student={student}
                             idx={idx}
                             row={studentRows[idx]}
@@ -832,13 +841,13 @@ function QuranSection() {
                   ) : viewMode === 'grid' ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       {records.map((record, index) => (
-                        <RecordCard key={record._id} record={record} index={index} />
+                        <RecordCard key={getRecordId(record)} record={record} index={index} />
                       ))}
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {records.map((record, index) => (
-                        <RecordCard key={record._id} record={record} index={index} />
+                        <RecordCard key={getRecordId(record)} record={record} index={index} />
                       ))}
                     </div>
                   )}

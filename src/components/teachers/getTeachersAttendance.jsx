@@ -101,7 +101,7 @@ const GetTeacherAttendanceByDate = () => {
           transition={{ type: 'spring', stiffness: 100 }}
           className="text-2xl font-bold text-gray-800"
         >
-          Diiwaangelinta Imtixaanka Macallimiinta
+          Diiwaangelinta xaadiriska Macallimiinta
         </motion.h2>
       </div>
 

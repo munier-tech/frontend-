@@ -195,13 +195,20 @@ const GetStudentById = () => {
     }
 
     // Try to resolve by friendly studentId or last 6 of _id
-    const match = students.find(s =>
-      s.studentId?.toLowerCase() === query.toLowerCase() ||
-      String(s._id).slice(-6).toLowerCase() === query.toLowerCase()
-    );
-    if (match?._id) {
-      await handleSelectStudent(match._id);
-      return;
+    const match = students.find(s => {
+      const idValue = s._id || s.id;
+      return (
+        s.studentId?.toLowerCase() === query.toLowerCase() ||
+        String(idValue || '').toLowerCase() === query.toLowerCase() ||
+        String(idValue || '').slice(-6).toLowerCase() === query.toLowerCase()
+      );
+    });
+    if (match) {
+      const lookupId = match._id || match.id;
+      if (lookupId) {
+        await handleSelectStudent(lookupId);
+        return;
+      }
     }
 
     toast.error('Arday lama helin');

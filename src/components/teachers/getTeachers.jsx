@@ -14,6 +14,8 @@ const itemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 
 
 const GetAllTeachers = () => {
   const { teachers, fetchTeachers, deleteTeacher, updateTeacher, loading, deleting, updating } = useTeachersStore();
+
+  const getTeacherId = (teacher) => teacher?._id || teacher?.id;
   
   const [searchQuery, setSearchQuery] = useState('');
   const [editingTeacher, setEditingTeacher] = useState(null);
@@ -51,7 +53,7 @@ const GetAllTeachers = () => {
   };
 
   const handleEdit = (teacher) => {
-    setEditingTeacher(teacher._id);
+    setEditingTeacher(getTeacherId(teacher));
     setEditForm({
       name: teacher.name,
       number: teacher.number,
@@ -155,8 +157,8 @@ const GetAllTeachers = () => {
           <>
             <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {currentTeachers.map((teacher) => (
-                <motion.div key={teacher._id} variants={itemVariants} whileHover={{ y: -5 }} className="bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300">
-                  {editingTeacher === teacher._id ? (
+                <motion.div key={getTeacherId(teacher)} variants={itemVariants} whileHover={{ y: -5 }} className="bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300">
+                  {editingTeacher === getTeacherId(teacher) ? (
                     <div className="p-4">
                       <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Magaca</label>
@@ -194,7 +196,7 @@ const GetAllTeachers = () => {
                       </div>
 
                       <div className="flex space-x-2">
-                        <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleEditSubmit(teacher._id)} disabled={updating} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg flex items-center justify-center">
+                        <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleEditSubmit(getTeacherId(teacher))} disabled={updating} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg flex items-center justify-center">
                           {updating ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <Save className="h-4 w-4 mr-2"/>} Keydi
                         </motion.button>
                         <motion.button whileTap={{ scale: 0.95 }} onClick={cancelEdit} className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-lg flex items-center justify-center">
@@ -224,7 +226,7 @@ const GetAllTeachers = () => {
 
                         <div className="mt-6 flex space-x-3">
                           <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleEdit(teacher)} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 py-2 px-4 rounded-lg flex items-center justify-center"><Edit className="h-4 w-4 mr-2"/> Wax ka beddel</motion.button>
-                          <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleDelete(teacher._id)} disabled={deleting} className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 py-2 px-4 rounded-lg flex items-center justify-center">{deleting ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <Trash2 className="h-4 w-4 mr-2"/>} Tirtir</motion.button>
+                          <motion.button whileTap={{ scale: 0.95 }} onClick={() => handleDelete(getTeacherId(teacher))} disabled={deleting} className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 py-2 px-4 rounded-lg flex items-center justify-center">{deleting ? <Loader2 className="animate-spin h-4 w-4 mr-2"/> : <Trash2 className="h-4 w-4 mr-2"/>} Tirtir</motion.button>
                         </div>
                       </div>
                     </div>

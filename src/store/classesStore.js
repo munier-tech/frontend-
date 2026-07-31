@@ -2,6 +2,21 @@ import { create } from 'zustand'
 import axios from '../config/axios'
 import toast from 'react-hot-toast'
 
+const normalizeRecord = (record) => {
+  if (!record || typeof record !== 'object') return record;
+
+  const normalized = { ...record };
+  if (!normalized._id && normalized.id) normalized._id = normalized.id;
+  if (!normalized.id && normalized._id) normalized.id = normalized._id;
+
+  return normalized;
+};
+
+const normalizeRecords = (records) => {
+  if (!Array.isArray(records)) return [];
+  return records.map(normalizeRecord);
+};
+
 const useClassesStore = create((set, get) => ({
   // State
   classes: [],
@@ -17,7 +32,7 @@ const useClassesStore = create((set, get) => ({
     try {
       const response = await axios.get('/classes/getAll')
       set({ 
-        classes: response.data.classes || [],
+        classes: normalizeRecords(response.data.classes || []),
         loading: false 
       })
     } catch (error) {
@@ -50,7 +65,7 @@ const useClassesStore = create((set, get) => ({
       const response = await axios.post('/classes/create', classData)
       
       set(state => ({
-        classes: [...state.classes, response.data.class],
+        classes: [...state.classes, normalizeRecord(response.data.class)],
         creating: false
       }))
       
@@ -69,13 +84,13 @@ const useClassesStore = create((set, get) => ({
     set({ updating: true })
     try {
       const response = await axios.put(`/classes/update/${id}`, classData)
-      const updatedClass = response.data.class
+      const updatedClass = normalizeRecord(response.data.class)
       
       set(state => ({
         classes: state.classes.map(cls => 
-          cls._id === id ? updatedClass : cls
+          (cls._id || cls.id) === id ? updatedClass : cls
         ),
-        selectedClass: state.selectedClass?._id === id ? updatedClass : state.selectedClass,
+        selectedClass: (state.selectedClass?._id || state.selectedClass?.id) === id ? updatedClass : state.selectedClass,
         updating: false
       }))
       
@@ -96,8 +111,8 @@ const useClassesStore = create((set, get) => ({
       await axios.delete(`/classes/delete/${id}`)
       
       set(state => ({
-        classes: state.classes.filter(cls => cls._id !== id),
-        selectedClass: state.selectedClass?._id === id ? null : state.selectedClass,
+        classes: state.classes.filter(cls => (cls._id || cls.id) !== id),
+        selectedClass: (state.selectedClass?._id || state.selectedClass?.id) === id ? null : state.selectedClass,
         deleting: false
       }))
       
@@ -118,7 +133,7 @@ const useClassesStore = create((set, get) => ({
       
       set(state => ({
         classes: state.classes.map(cls =>
-          cls._id === classId 
+          (cls._id || cls.id) === classId 
             ? { ...cls, teacher: response.data.teacher }
             : cls
         )

@@ -2,6 +2,25 @@ import { create } from "zustand";
 import axios from "../config/axios";
 import toast from "react-hot-toast";
 
+const normalizeTeacher = (teacher = {}) => {
+  if (!teacher || typeof teacher !== "object") return teacher;
+
+  const normalizedTeacher = { ...teacher };
+
+  if (!normalizedTeacher._id && normalizedTeacher.id) {
+    normalizedTeacher._id = normalizedTeacher.id;
+  }
+
+  if (!normalizedTeacher.id && normalizedTeacher._id) {
+    normalizedTeacher.id = normalizedTeacher._id;
+  }
+
+  return normalizedTeacher;
+};
+
+const normalizeTeachers = (teachers = []) =>
+  Array.isArray(teachers) ? teachers.map(normalizeTeacher) : [];
+
 const useTeachersStore = create((set, get) => ({
   // ===========================
   // STATE
@@ -24,7 +43,7 @@ const useTeachersStore = create((set, get) => ({
       });
 
       set({
-        teachers: response.data.teachers || [],
+        teachers: normalizeTeachers(response.data.teachers || []),
         loading: false,
       });
     } catch (error) {
@@ -44,12 +63,14 @@ const useTeachersStore = create((set, get) => ({
         withCredentials: true,
       });
 
+      const normalizedTeacher = normalizeTeacher(response.data.teacher);
+
       set({
-        selectedTeacher: response.data.teacher,
+        selectedTeacher: normalizedTeacher,
         loading: false,
       });
 
-      return { success: true, teacher: response.data.teacher };
+      return { success: true, teacher: normalizedTeacher };
     } catch (error) {
       toast.error(error.response?.data?.message || "fadlan khadka iska hubi");
       set({ loading: false });
@@ -67,13 +88,15 @@ const useTeachersStore = create((set, get) => ({
         withCredentials: true,
       }); // Do NOT set Content-Type manually
 
+      const normalizedTeacher = normalizeTeacher(response.data.teacher);
+
       set((state) => ({
-        teachers: [...state.teachers, response.data.teacher],
+        teachers: [...state.teachers, normalizedTeacher],
         creating: false,
       }));
 
       toast.success("macalinka si guul leh ayaa loo abuuray");
-      return { success: true, teacher: response.data.teacher };
+      return { success: true, teacher: normalizedTeacher };
     } catch (error) {
       console.error("Error creating teacher:", error);
       toast.error(error.response?.data?.message || "fadlan khadka iska hubi");
@@ -94,19 +117,21 @@ const useTeachersStore = create((set, get) => ({
 
       const updatedTeacher = response.data.teacher;
 
+      const normalizedTeacher = normalizeTeacher(updatedTeacher);
+
       set((state) => ({
         teachers: state.teachers.map((t) =>
-          t._id === id ? updatedTeacher : t
+          t._id === id || t.id === id ? normalizedTeacher : t
         ),
         selectedTeacher:
-          state.selectedTeacher?._id === id
-            ? updatedTeacher
+          state.selectedTeacher?._id === id || state.selectedTeacher?.id === id
+            ? normalizedTeacher
             : state.selectedTeacher,
         updating: false,
       }));
 
       toast.success("macalinka si guul leh ayaa loo cusboonaysiiyay");
-      return { success: true, teacher: updatedTeacher };
+      return { success: true, teacher: normalizedTeacher };
     } catch (error) {
       console.error("Error updating teacher:", error);
       toast.error(error.response?.data?.message || "fadlan khadka iska hubi");
@@ -124,9 +149,11 @@ const useTeachersStore = create((set, get) => ({
       await axios.delete(`/teachers/delete/${id}`, { withCredentials: true });
 
       set((state) => ({
-        teachers: state.teachers.filter((t) => t._id !== id),
+        teachers: state.teachers.filter((t) => t._id !== id && t.id !== id),
         selectedTeacher:
-          state.selectedTeacher?._id === id ? null : state.selectedTeacher,
+          state.selectedTeacher?._id === id || state.selectedTeacher?.id === id
+            ? null
+            : state.selectedTeacher,
         deleting: false,
       }));
 

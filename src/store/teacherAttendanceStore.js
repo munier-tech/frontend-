@@ -38,39 +38,39 @@ const useTeacherAttendanceStore = create((set) => ({
     }
   },
 
-  getAttendanceByDate: async (date, teacherId = null) => {
-  set({ loading: true, error: null });
-  try {
-    // Validate date
-    if (!date) {
-      throw new Error('Date is required');
+  getAttendanceByDate: async ({ from, to, teacherId = null } = {}) => {
+    set({ loading: true, error: null });
+    try {
+      if (!from || !to) {
+        throw new Error('Date range is required');
+      }
+
+      const params = { from, to };
+      if (teacherId) params.teacherId = teacherId;
+
+      const response = await axios.get('/teachersAttendance/get', { params });
+
+      set({
+        attendanceRecords: response.data.data || [],
+        currentDate: { from, to },
+        loading: false
+      });
+
+      return response.data;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message ||
+        error.message ||
+        'Failed to fetch attendance';
+
+      toast.error(errorMessage);
+      set({
+        error: errorMessage,
+        loading: false,
+        attendanceRecords: []
+      });
+      throw error;
     }
-
-    const params = { date };
-    if (teacherId) params.teacherId = teacherId;
-
-    const response = await axios.get('/teachersAttendance/get', { date ,  params });
-    
-    set({ 
-      attendanceRecords: response.data.data,
-      currentDate: date,
-      loading: false 
-    });
-
-    return response.data;
-  } catch (error) {
-    const errorMessage = error.response?.data?.message || 
-                        error.message || 
-                        'Failed to fetch attendance';
-    
-    toast.error(errorMessage);
-    set({ 
-      error: errorMessage,
-      loading: false 
-    });
-    throw error;
-  }
-},
+  },
 
   updateAttendance: async (id, data) => {
     try {

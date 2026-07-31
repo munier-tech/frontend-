@@ -13,6 +13,9 @@ const CreateClassExam = () => {
   const { students, fetchStudentsByClass } = useStudentsStore();
   const { subjects, getAllSubjects } = useSubjectStore();
 
+  const getRecordId = (record) => record?._id || record?.id;
+  const getOptionValue = (option) => option?.value || option?.id || option?._id || option;
+
   const [formData, setFormData] = useState({
     examType: null,
     date: '',
@@ -29,12 +32,16 @@ const CreateClassExam = () => {
   }, []);
 
   useEffect(() => {
-    if (formData.classId?.value) {
-      fetchStudentsByClass(formData.classId.value).then((res) => {
+    const classValue = getOptionValue(formData.classId);
+    if (classValue) {
+      fetchStudentsByClass(classValue).then((res) => {
         if (res?.success) {
           const initialMarks = {};
           res.students.forEach(student => {
-            initialMarks[student._id] = '';
+            const studentId = getRecordId(student);
+            if (studentId) {
+              initialMarks[studentId] = '';
+            }
           });
           setStudentMarks(initialMarks);
         }
@@ -50,12 +57,12 @@ const CreateClassExam = () => {
   ];
 
   const classOptions = classes.map(cls => ({
-    value: cls._id,
+    value: getRecordId(cls),
     label: cls.name,
   }));
 
   const subjectOptions = subjects.map(sub => ({
-    value: sub._id,
+    value: getRecordId(sub),
     label: sub.name,
   }));
 
@@ -83,8 +90,10 @@ const CreateClassExam = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const { examType, date, classId, subjectId, totalMarks } = formData;
+    const classValue = getOptionValue(classId);
+    const subjectValue = getOptionValue(subjectId);
 
-    if (!examType?.value || !date || !classId?.value || !subjectId?.value || !totalMarks) {
+    if (!examType?.value || !date || !classValue || !subjectValue || !totalMarks) {
       toast.error('Fadlan buuxi meelaha loo baahan yahay');
       return;
     }
@@ -103,8 +112,8 @@ const CreateClassExam = () => {
       const result = await createClassExam({
         examType: examType.value,
         date,
-        classId: classId.value,
-        subjectId: subjectId.value,
+        classId: classValue,
+        subjectId: subjectValue,
         totalMarks: Number(totalMarks),
         marksList,
       });
@@ -226,23 +235,26 @@ const CreateClassExam = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {students.map(student => (
-                      <tr key={student._id}>
-                        <td className="px-6 py-4 whitespace-nowrap">{student.fullname}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{student.rollNumber || '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <input
-                            type="number"
-                            value={studentMarks[student._id] || ''}
-                            onChange={(e) => handleMarkChange(student._id, e.target.value)}
-                            className="w-24 px-3 py-2 border border-gray-300 rounded-md"
-                            min="0"
-                            max={formData.totalMarks || ''}
-                            required
-                          />
-                        </td>
-                      </tr>
-                    ))}
+                    {students.map(student => {
+                      const studentId = getRecordId(student);
+                      return (
+                        <tr key={studentId}>
+                          <td className="px-6 py-4 whitespace-nowrap">{student.fullname}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{student.rollNumber || '-'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <input
+                              type="number"
+                              value={studentMarks[studentId] || ''}
+                              onChange={(e) => handleMarkChange(studentId, e.target.value)}
+                              className="w-24 px-3 py-2 border border-gray-300 rounded-md"
+                              min="0"
+                              max={formData.totalMarks || ''}
+                              required
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

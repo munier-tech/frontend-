@@ -1,6 +1,21 @@
 import { create } from "zustand";
 import axios from "../config/axios"; 
 
+const normalizeRecord = (record) => {
+  if (!record || typeof record !== 'object') return record;
+
+  const normalized = { ...record };
+  if (!normalized._id && normalized.id) normalized._id = normalized.id;
+  if (!normalized.id && normalized._id) normalized.id = normalized._id;
+
+  return normalized;
+};
+
+const normalizeRecords = (records) => {
+  if (!Array.isArray(records)) return [];
+  return records.map(normalizeRecord);
+};
+
 export const useSubjectStore = create((set) => ({
   subjects: [],
   subject: null,
@@ -17,7 +32,7 @@ export const useSubjectStore = create((set) => ({
       set({ isLoading: true, error: null });
       const res = await axios.post("/subjects/create", data);
       set((state) => ({
-        subjects: [...state.subjects, res.data.subject],
+        subjects: [...state.subjects, normalizeRecord(res.data.subject)],
         successMessage: res.data.message,
         isLoading: false,
       }));
@@ -39,7 +54,7 @@ getAllSubjects: async () => {
     console.log("Fetched subjects from backend:", res.data); // ✅ Add this log
 
     // Be sure to use the correct key: "subjects"
-    set({ subjects: res.data.subjects, isLoading: false });
+    set({ subjects: normalizeRecords(res.data.subjects || []), isLoading: false });
   } catch (err) {
     console.error("Failed to fetch subjects:", err);
     set({
@@ -71,7 +86,7 @@ getAllSubjects: async () => {
       const res = await axios.put(`/subjects/update/${subjectId}`, data);
       set((state) => ({
         subjects: state.subjects.map((s) =>
-          s._id === subjectId ? res.data.subject : s
+          (s._id || s.id) === subjectId ? normalizeRecord(res.data.subject) : s
         ),
         successMessage: res.data.message,
         isLoading: false,
@@ -90,7 +105,7 @@ getAllSubjects: async () => {
       set({ isLoading: true, error: null });
       await axios.delete(`/subjects/delete/${subjectId}`);
       set((state) => ({
-        subjects: state.subjects.filter((s) => s._id !== subjectId),
+        subjects: state.subjects.filter((s) => (s._id || s.id) !== subjectId),
         successMessage: "Subject deleted",
         isLoading: false,
       }));

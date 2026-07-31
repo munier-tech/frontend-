@@ -2,6 +2,31 @@ import { create } from 'zustand'
 import axios from '../config/axios'
 import toast from 'react-hot-toast'
 
+const normalizeRecord = (record) => {
+  if (!record || typeof record !== 'object') return record;
+
+  const normalized = { ...record };
+
+  if (!normalized._id && normalized.id) {
+    normalized._id = normalized.id;
+  }
+
+  if (!normalized.id && normalized._id) {
+    normalized.id = normalized._id;
+  }
+
+  if (normalized.class && typeof normalized.class === 'object') {
+    normalized.class = normalizeRecord(normalized.class);
+  }
+
+  return normalized;
+};
+
+const normalizeStudents = (students) => {
+  if (!Array.isArray(students)) return [];
+  return students.map(normalizeRecord);
+};
+
 const useStudentsStore = create((set, get) => ({
   students: [],
   selectedStudent: null,
@@ -15,7 +40,7 @@ const useStudentsStore = create((set, get) => ({
     set({ loading: true });
     try {
       const response = await axios.get('/students/getAll');
-      set({ students: response.data.students || [], loading: false });
+      set({ students: normalizeStudents(response.data.students || []), loading: false });
     } catch (error) {
       console.error('Error fetching students:', error);
       toast.error('Failed to fetch students');
@@ -27,7 +52,7 @@ const useStudentsStore = create((set, get) => ({
     set({ loading: true });
     try {
       const response = await axios.get(`/students/class/${classId}`);
-      const fetchedStudents = response.data.students || [];
+      const fetchedStudents = normalizeStudents(response.data.students || []);
       
       console.log('Fetched students for class:', classId, fetchedStudents); // Debug log
       
@@ -48,8 +73,9 @@ const useStudentsStore = create((set, get) => ({
     set({ loading: true });
     try {
       const response = await axios.get(`/students/getId/${id}`);
-      set({ selectedStudent: response.data.student, loading: false });
-      return { success: true, student: response.data.student };
+      const student = normalizeRecord(response.data.student);
+      set({ selectedStudent: student, loading: false });
+      return { success: true, student };
     } catch (error) {
       console.error('Error fetching student:', error);
       toast.error('Failed to fetch student details');
@@ -62,7 +88,7 @@ const useStudentsStore = create((set, get) => ({
     set({ creating: true });
     try {
       const response = await axios.post('/students/create', studentData);
-      const newStudent = response.data.student;
+      const newStudent = normalizeRecord(response.data.student);
       
       set(state => ({
         students: [...state.students, newStudent],
@@ -85,13 +111,13 @@ const useStudentsStore = create((set, get) => ({
     set({ updating: true });
     try {
       const response = await axios.put(`/students/update/${id}`, studentData);
-      const updatedStudent = response.data.student;
+      const updatedStudent = normalizeRecord(response.data.student);
       
       set(state => ({
         students: state.students.map(student =>
-          student._id === id ? updatedStudent : student
+          (student._id || student.id) === id ? updatedStudent : student
         ),
-        selectedStudent: state.selectedStudent?._id === id ? updatedStudent : state.selectedStudent,
+        selectedStudent: (state.selectedStudent?._id || state.selectedStudent?.id) === id ? updatedStudent : state.selectedStudent,
         updating: false,
       }));
       
@@ -112,8 +138,8 @@ const useStudentsStore = create((set, get) => ({
       await axios.delete(`/students/delete/${id}`);
       
       set(state => ({
-        students: state.students.filter(student => student._id !== id),
-        selectedStudent: state.selectedStudent?._id === id ? null : state.selectedStudent,
+        students: state.students.filter(student => (student._id || student.id) !== id),
+        selectedStudent: (state.selectedStudent?._id || state.selectedStudent?.id) === id ? null : state.selectedStudent,
         deleting: false,
       }));
       
@@ -134,7 +160,7 @@ const useStudentsStore = create((set, get) => ({
       
       set(state => ({
         students: state.students.map(student =>
-          student._id === studentId ? { ...student, class: response.data.class } : student
+          (student._id || student.id) === studentId ? { ...student, class: normalizeRecord(response.data.class) } : student
         )
       }));
       
@@ -154,7 +180,7 @@ const useStudentsStore = create((set, get) => ({
       
       set(state => ({
         students: state.students.map(student =>
-          student._id === id ? { ...student, fee: response.data.fee } : student
+          (student._id || student.id) === id ? { ...student, fee: response.data.fee } : student
         )
       }));
       
@@ -179,7 +205,7 @@ const useStudentsStore = create((set, get) => ({
     return students.filter((student) => {
       const nameMatch = student.fullname?.toLowerCase().includes(normalizedQuery);
       const studentIdMatch = student.studentId?.toLowerCase().includes(normalizedQuery);
-      const objectId = student._id ? String(student._id) : '';
+      const objectId = (student._id || student.id) ? String(student._id || student.id) : '';
       const objectIdMatch = objectId.toLowerCase().includes(normalizedQuery) ||
         objectId.slice(-6).toLowerCase().includes(normalizedQuery);
       const motherMatch = String(student.motherNumber || '').toLowerCase().includes(normalizedQuery);
