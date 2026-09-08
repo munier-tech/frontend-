@@ -9,7 +9,7 @@ import { toast } from 'react-hot-toast';
 
 // Somali translations
 const translations = {
-  heading: "Diiwaaelinta Imaatinka",
+  heading: "Diiwelina Imaatinka",
   selectClass: "Dooro Fasalka",
   selectDate: "Dooro Taariikhda",
   studentName: "Magaca Ardayga",
