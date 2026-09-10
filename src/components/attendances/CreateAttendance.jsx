@@ -12,7 +12,7 @@ const translations = {
   heading: "Diiwelin Imaatinka",
   selectClass: "Dooro Fasalka",
   selectDate: "Dooro Taariikhda",
-  studentName: "Magaca Ardaya",
+  studentName: "Magaca ArdayDa",
   age: "Da'da",
   gender: "Jinsiga",
   status: "Xaaladda",
