@@ -11,7 +11,7 @@ import { toast } from 'react-hot-toast';
 const translations = {
   heading: "Diiwelin Imaatinka",
   selectClass: "Dooro Fasalka",
-  selectDate: "Dooro Taariida",
+  selectDate: "Door Taariida",
   studentName: "Maga Ara",
   age: "Da'da",
   gender: "Jinsiga",
