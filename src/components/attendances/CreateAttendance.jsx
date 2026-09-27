@@ -15,7 +15,7 @@ const translations = {
   studentName: "Maga Ara",
   age: "Da'da",
   gender: "Jinsiga",
-  status: "Xaaladda",
+  status: "Xaalad",
   present: "xaadir",
   absent: "Majoogo",
   late: "soo daahey",
