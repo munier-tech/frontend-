@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiCalendar, FiUsers, FiBook, FiEye, FiSearch,
-  FiFilter, FiDownload, FiPrinter, FiRefreshCw,
-  FiChevronDown, FiChevronUp, FiClock, FiUserCheck,
-  FiUserX, FiUserMinus, FiAward, FiStar, FiTrendingUp,
+  FiDownload, FiPrinter, FiRefreshCw,
+  FiChevronDown, FiClock, FiUserCheck,
+  FiUserX, FiUserMinus, FiAward, FiTrendingUp,
   FiBarChart2, FiGrid, FiList
 } from 'react-icons/fi';
 import { useDailyQuranStore } from '../../store/dailyQuranStore';
@@ -87,6 +88,59 @@ const statusConfig = {
   }
 };
 
+// Colors used only in the print report
+const printStatusColors = {
+  gartay: { bg: '#dcfce7', color: '#166534' },
+  garan_waayay: { bg: '#fee2e2', color: '#991b1b' },
+  majoogo: { bg: '#fef9c3', color: '#854d0e' }
+};
+
+const printCss = `
+  #quran-print-root { display: none; }
+
+  @media print {
+    @page { size: A4 landscape; margin: 12mm; }
+
+    /* Hide the whole app (sidebar, filters, toasts...) and show only the report */
+    body > *:not(#quran-print-root) { display: none !important; }
+    html, body {
+      height: auto !important;
+      overflow: visible !important;
+      background: #fff !important;
+    }
+    #quran-print-root {
+      display: block !important;
+      width: 100%;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #000;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    #quran-print-root .pr-title { font-size: 20px; font-weight: bold; margin: 0 0 4px; }
+    #quran-print-root .pr-meta { font-size: 12px; margin: 2px 0; color: #333; }
+    #quran-print-root .pr-stats {
+      display: flex; gap: 12px; margin: 10px 0 14px; font-size: 12px;
+    }
+    #quran-print-root .pr-stat {
+      border: 1px solid #999; padding: 6px 12px; border-radius: 4px; text-align: center;
+    }
+    #quran-print-root .pr-stat b { display: block; font-size: 16px; }
+    #quran-print-root table {
+      width: 100%; border-collapse: collapse; font-size: 11px;
+    }
+    #quran-print-root thead { display: table-header-group; }
+    #quran-print-root tr { page-break-inside: avoid; break-inside: avoid; }
+    #quran-print-root th, #quran-print-root td {
+      border: 1px solid #777; padding: 5px 7px; text-align: left; vertical-align: top;
+    }
+    #quran-print-root th { background: #e5e7eb !important; font-weight: bold; }
+    #quran-print-root .pr-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 10px; font-weight: bold; font-size: 10px;
+    }
+    #quran-print-root .pr-footer { margin-top: 14px; font-size: 10px; color: #555; }
+  }
+`;
+
 const ViewDailyQuranRecords = () => {
   const [selectedClassId, setSelectedClassId] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -141,7 +195,7 @@ const ViewDailyQuranRecords = () => {
     return statusConfig[status]?.label || status;
   };
 
-  const filteredRecords = classSessionsByDate.filter(record => {
+  const filteredRecords = (classSessionsByDate || []).filter(record => {
     const matchesSearch = !searchQuery ||
       record.student?.fullname?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       record.student?.studentId?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -159,6 +213,7 @@ const ViewDailyQuranRecords = () => {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('so-SO', {
       year: 'numeric',
       month: 'long',
@@ -167,6 +222,7 @@ const ViewDailyQuranRecords = () => {
   };
 
   const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleString('so-SO', {
       year: 'numeric',
       month: 'long',
@@ -184,7 +240,7 @@ const ViewDailyQuranRecords = () => {
     const gartay = filteredRecords.filter(r => r.status === 'gartay').length;
     const garanWaayay = filteredRecords.filter(r => r.status === 'garan_waayay').length;
     const majoogo = filteredRecords.filter(r => r.status === 'majoogo').length;
-    
+
     return {
       total,
       gartay,
@@ -198,10 +254,29 @@ const ViewDailyQuranRecords = () => {
   const stats = calculateStats();
 
   const handlePrint = () => {
-    window.print();
+    if (filteredRecords.length === 0) {
+      toast.error(translations.noRecords);
+      return;
+    }
+    // Small delay so the print report is fully rendered before the dialog opens
+    setTimeout(() => window.print(), 100);
+  };
+
+  const convertToCSV = (data) => {
+    const headers = Object.keys(data[0] || {});
+    const csvRows = [
+      headers.join(','),
+      ...data.map(row => headers.map(header => JSON.stringify(row[header] ?? '')).join(','))
+    ];
+    return csvRows.join('\n');
   };
 
   const handleExport = () => {
+    if (filteredRecords.length === 0) {
+      toast.error(translations.noRecords);
+      return;
+    }
+
     const data = filteredRecords.map(record => ({
       'Student Name': record.student?.fullname,
       'Student ID': record.student?.studentId,
@@ -213,9 +288,9 @@ const ViewDailyQuranRecords = () => {
       'Notes': record.notes,
       'Created By': record.createdBy?.username
     }));
-    
-    const csv = convertToCSV(data);
-    const blob = new Blob([csv], { type: 'text/csv' });
+
+    const csv = '\uFEFF' + convertToCSV(data); // BOM so Excel reads UTF-8 correctly
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -225,15 +300,6 @@ const ViewDailyQuranRecords = () => {
     toast.success('Xogta si guul leh ayaa loo soo dejiyay');
   };
 
-  const convertToCSV = (data) => {
-    const headers = Object.keys(data[0] || {});
-    const csvRows = [
-      headers.join(','),
-      ...data.map(row => headers.map(header => JSON.stringify(row[header] || '')).join(','))
-    ];
-    return csvRows.join('\n');
-  };
-
   const StatusBadge = ({ status }) => {
     const config = getStatusConfig(status);
     const Icon = config.icon;
@@ -241,7 +307,7 @@ const ViewDailyQuranRecords = () => {
       <motion.span
         initial={{ scale: 0.8 }}
         animate={{ scale: 1 }}
-        className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full border ${config.bgLight} ${config.textLight} border ${config.border}`}
+        className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full border ${config.bgLight} ${config.textLight} ${config.border}`}
       >
         <Icon className="w-3 h-3 mr-1" />
         {config.label}
@@ -299,7 +365,7 @@ const ViewDailyQuranRecords = () => {
               </motion.div>
             </div>
           </div>
-          
+
           <div className="mt-3 flex items-center space-x-4 text-xs text-gray-500">
             <span className="flex items-center">
               <FiCalendar className="w-3 h-3 mr-1" />
@@ -359,8 +425,77 @@ const ViewDailyQuranRecords = () => {
     );
   };
 
+  // Clean, static report that is only visible when printing
+  const printReport = (
+    <div id="quran-print-root">
+      <h1 className="pr-title">{translations.heading}</h1>
+      <p className="pr-meta">
+        <b>{translations.class}:</b> {selectedClass ? `${selectedClass.name} - ${selectedClass.subject}` : 'N/A'}
+        {'   |   '}
+        <b>{translations.date}:</b> {formatDate(selectedDate)}
+      </p>
+
+      <div className="pr-stats">
+        <div className="pr-stat"><b>{stats.total}</b>{translations.totalSessions}</div>
+        <div className="pr-stat"><b>{stats.gartay}</b>{translations.gartay}</div>
+        <div className="pr-stat"><b>{stats.garanWaayay}</b>{translations.garanWaayay}</div>
+        <div className="pr-stat"><b>{stats.majoogo}</b>{translations.majoogo}</div>
+        <div className="pr-stat"><b>{stats.comprehensionRate}%</b>{translations.comprehensionRate}</div>
+        <div className="pr-stat"><b>{stats.attendanceRate}%</b>{translations.attendanceRate}</div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style={{ width: '4%' }}>#</th>
+            <th style={{ width: '20%' }}>{translations.student}</th>
+            <th style={{ width: '10%' }}>ID</th>
+            <th style={{ width: '12%' }}>{translations.status}</th>
+            <th style={{ width: '12%' }}>Surah</th>
+            <th style={{ width: '10%' }}>Taxdiid</th>
+            <th style={{ width: '20%' }}>{translations.notes}</th>
+            <th style={{ width: '12%' }}>{translations.createdBy}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredRecords.map((record, index) => {
+            const colors = printStatusColors[record.status] || printStatusColors.gartay;
+            return (
+              <tr key={record._id || index}>
+                <td>{index + 1}</td>
+                <td>{record.student?.fullname || 'Unknown Student'}</td>
+                <td>{record.student?.studentId || 'N/A'}</td>
+                <td>
+                  <span
+                    className="pr-badge"
+                    style={{ background: colors.bg, color: colors.color }}
+                  >
+                    {getStatusText(record.status)}
+                  </span>
+                </td>
+                <td>{record.currentSurah || 'N/A'}</td>
+                <td>{record.taxdiid || 'N/A'}</td>
+                <td>{record.notes || '-'}</td>
+                <td>{record.createdBy?.username || 'System'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <p className="pr-footer">
+        Daabacay: {formatDateTime(new Date().toISOString())}
+      </p>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <style>{printCss}</style>
+
+      {/* Print report is rendered directly in <body> so the layout/sidebar can't affect it */}
+      {typeof document !== 'undefined' && createPortal(printReport, document.body)}
+
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
           {/* Header with Animation */}
@@ -379,7 +514,7 @@ const ViewDailyQuranRecords = () => {
                   {translations.subtitle}
                 </p>
               </div>
-              
+
               {/* View Toggle */}
               <div className="flex items-center space-x-2 bg-white rounded-lg shadow-sm p-1">
                 <button
@@ -590,7 +725,7 @@ const ViewDailyQuranRecords = () => {
               </div>
             ) : !selectedClassId ? (
               <div className="p-12 text-center">
-                <FiUsers className="mx-auto h-16 w-16 text-gray-300" />
+                <FiUsers className="mx-auto h-16 w-16 text-gray-400" />
                 <p className="mt-4 text-gray-500 text-lg">{translations.noClassSelected}</p>
               </div>
             ) : !selectedDate ? (
@@ -634,7 +769,7 @@ const ViewDailyQuranRecords = () => {
                         const config = getStatusConfig(record.status);
                         const Icon = config.icon;
                         const isExpanded = expandedRecords[record._id];
-                        
+
                         return (
                           <React.Fragment key={record._id}>
                             <motion.tr
@@ -683,7 +818,7 @@ const ViewDailyQuranRecords = () => {
                                 </motion.button>
                               </td>
                             </motion.tr>
-                            
+
                             <AnimatePresence>
                               {isExpanded && (
                                 <motion.tr
@@ -754,23 +889,6 @@ const ViewDailyQuranRecords = () => {
           </motion.div>
         </div>
       </div>
-
-      {/* Print Styles */}
-      <style jsx global>{`
-        @media print {
-          .container {
-            margin: 0;
-            padding: 0;
-          }
-          button, .shadow-xl, .shadow-md {
-            box-shadow: none !important;
-          }
-          .bg-gradient-to-r, .bg-gradient-to-br {
-            background: white !important;
-            color: black !important;
-          }
-        }
-      `}</style>
     </div>
   );
 };
